@@ -5,10 +5,17 @@
 export TERM=vt100
 
 export BSD_HOSTNAME="`hostname -f`"
-export BSD_MIRROR="http://tftp"
+export BSD_MIRROR="http://ftp2.de.freebsd.org"
+
+export BSD_ARCH="`uname -m`"
+export BSD_RELEASE="`uname -r`"
+
+export ANSIBLE_SSH_KEYS="
+...
+"
 
 export BSDINSTALL_DISTDIR="/tmp"
-export BSDINSTALL_DISTSITE="${BSD_MIRROR}/pub/FreeBSD/releases/`uname -m`/`uname -r`"
+export BSDINSTALL_DISTSITE="${BSD_MIRROR}/pub/FreeBSD/releases/${BSD_ARCH}/${BSD_RELEASE}"
 export DISTRIBUTIONS="kernel.txz base.txz"
 
 export ZFSBOOT_POOL_NAME="z0"
@@ -36,10 +43,6 @@ export LOCAL_PACKAGES="lang/python sysutils/dmidecode security/ca_root_nss secur
 export LOCAL_PACKAGES_VMWARE="emulators/open-vm-tools-nox11"
 export LOCAL_PACKAGES_NUTANIX=""
 export LOCAL_PACKAGES_KVM=""
-
-export ANSIBLE_SSH_KEYS="
-...
-"
 
 # ---
 
