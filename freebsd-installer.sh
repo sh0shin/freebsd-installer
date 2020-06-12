@@ -23,7 +23,7 @@ export ZFSBOOT_BEROOT_NAME="ROOT"
 export ZFSBOOT_BOOTFS_NAME="root"
 export ZFSBOOT_SWAPFS_NAME="swap"
 
-export ZFSBOOT_DISKS="da0" #`sysctl -n kern.disks | awk '{print $1}'`" # First Disk!
+export ZFSBOOT_DISKS="`sysctl -n kern.disks | awk '{print $1}'`"
 export ZFSBOOT_SWAP_SIZE="0"
 export ZFSBOOT_SWAP_ZVOL_SIZE="1G"
 
