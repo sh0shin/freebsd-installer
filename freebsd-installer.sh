@@ -1,29 +1,34 @@
 #!/bin/sh
-#
+# vim: set ft=sh :
 
 # environment
 export TERM=vt100
 
-export BSD_HOSTNAME="`hostname -f`"
+BSD_HOSTNAME="$(hostname -f)"
+export BSD_HOSTNAME
 export BSD_MIRROR="http://ftp2.de.freebsd.org"
 
-export BSD_ARCH="`uname -m`"
-export BSD_RELEASE="`uname -r`"
+BSD_ARCH="$(uname -m)"
+export BSD_ARCH
+BSD_RELEASE="$(uname -r)"
+export BSD_RELEASE
 
-export ANSIBLE_SSH_KEYS="
-...
-"
+SSH_KEYS="$(fetch -qo- https://github.com/sh0shin.keys)"
+export ANSIBLE_SSH_KEYS="$SSH_KEYS"
+export ROOT_SSH_KEYS="$SSH_KEYS"
 
 export BSDINSTALL_DISTDIR="/tmp"
 export BSDINSTALL_DISTSITE="${BSD_MIRROR}/pub/FreeBSD/releases/${BSD_ARCH}/${BSD_RELEASE}"
 export DISTRIBUTIONS="kernel.txz base.txz"
 
 export ZFSBOOT_POOL_NAME="z0"
+export ZFSBOOT_POOL_CREATE_OPTIONS="-O compress=lz4 -O atime=off -O aclmode=passthrough -O aclinherit=passthrough"
+
 export ZFSBOOT_BEROOT_NAME="ROOT"
 export ZFSBOOT_BOOTFS_NAME="root"
 export ZFSBOOT_SWAPFS_NAME="swap"
 
-export ZFSBOOT_DISKS="`sysctl -n kern.disks | awk '{print $1}'`"
+export ZFSBOOT_DISKS="ada0" #"`sysctl -n kern.disks | awk '{print $1}'`"
 export ZFSBOOT_SWAP_SIZE="0"
 export ZFSBOOT_SWAP_ZVOL_SIZE="1G"
 
@@ -32,15 +37,20 @@ export ZFSBOOT_FORCE_4K_SECTORS="1"
 export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
 export ZFSBOOT_BOOT_TYPE="BIOS"
 export ZFSBOOT_CONFIRM_LAYOUT="0"
+export ZFSBOOT_DATASETS_LOCAL=""
 export ZFSBOOT_DATASETS="
   /$ZFSBOOT_BEROOT_NAME                       mountpoint=none
   /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME  mountpoint=/
+  /$ZFSBOOT_BEROOT_NAME/usr                   mountpoint=/usr,canmount=off
+  /$ZFSBOOT_BEROOT_NAME/usr/home
+  $ZFSBOOT_DATASETS_LOCAL
 "
 
-export VM_GUEST="`sysctl -n kern.vm_guest`"
+VM_GUEST="$(sysctl -n kern.vm_guest)"
+export VM_GUEST
 
-export LOCAL_PACKAGES="lang/python sysutils/dmidecode security/ca_root_nss security/sudo sysutils/firstboot-freebsd-update sysutils/firstboot-pkgs"
-export LOCAL_PACKAGES_VMWARE="emulators/open-vm-tools-nox11"
+export LOCAL_PACKAGES="python dmidecode ca_root_nss sudo firstboot-freebsd-update firstboot-pkgs"
+export LOCAL_PACKAGES_VMWARE="open-vm-tools-nox11"
 export LOCAL_PACKAGES_NUTANIX=""
 export LOCAL_PACKAGES_KVM=""
 
@@ -55,6 +65,7 @@ export BSDINSTALL_DISTSITE="$BSDINSTALL_DISTSITE"
 export DISTRIBUTIONS="$DISTRIBUTIONS"
 
 export ZFSBOOT_POOL_NAME="$ZFSBOOT_POOL_NAME"
+export ZFSBOOT_POOL_CREATE_OPTIONS="$ZFSBOOT_POOL_CREATE_OPTIONS"
 export ZFSBOOT_BEROOT_NAME="$ZFSBOOT_BEROOT_NAME"
 export ZFSBOOT_BOOTFS_NAME="$ZFSBOOT_BOOTFS_NAME"
 export ZFSBOOT_SWAPFS_NAME="$ZFSBOOT_SWAPFS_NAME"
@@ -68,6 +79,7 @@ export ZFSBOOT_FORCE_4K_SECTORS="$ZFSBOOT_FORCE_4K_SECTORS"
 export ZFSBOOT_PARTITION_SCHEME="$ZFSBOOT_PARTITION_SCHEME"
 export ZFSBOOT_BOOT_TYPE="$ZFSBOOT_BOOT_TYPE"
 export ZFSBOOT_CONFIRM_LAYOUT="$ZFSBOOT_CONFIRM_LAYOUT"
+export ZFSBOOT_DATASETS_LOCAL="$ZFSBOOT_DATASETS_LOCAL"
 export ZFSBOOT_DATASETS="$ZFSBOOT_DATASETS"
 
 export VM_GUEST="$VM_GUEST"
@@ -78,8 +90,14 @@ export LOCAL_PACKAGES_NUTANIX="$LOCAL_PACKAGES_NUTANIX"
 export LOCAL_PACKAGES_KVM="$LOCAL_PACKAGES_KVM"
 
 export ANSIBLE_SSH_KEYS="$ANSIBLE_SSH_KEYS"
+export ROOT_SSH_KEYS="$ROOT_SSH_KEYS"
 
 #!/bin/sh
+
+# zfs
+zfs set mountpoint=none ${ZFSBOOT_POOL_NAME}
+zfs create -s -o compression=off -o sync=disabled -o org.freebsd:swap=on -V ${ZFSBOOT_SWAP_ZVOL_SIZE} ${ZFSBOOT_POOL_NAME}/${ZFSBOOT_BEROOT_NAME}/${ZFSBOOT_SWAPFS_NAME}
+rmdir /${ZFSBOOT_POOL_NAME}
 
 # boot
 echo '-P' >/boot.config
@@ -132,7 +150,7 @@ mkdir -p /usr/local/etc/pkg/repos
 echo 'FreeBSD: { url: "pkg+http://pkg.freebsd.org/\${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
 
 # packages
-export ASSUME_ALWAYS_YES="YES" # pkg
+export ASSUME_ALWAYS_YES="YES"
 pkg bootstrap
 pkg update -f
 pkg install ${LOCAL_PACKAGES}
@@ -152,7 +170,7 @@ pw user add -n ansible -u 1000 -c "Ansible" -g ansible -m -M 0700 -h -
 ## root
 mkdir -m0700 /root/.ssh
 cat << IEOF > /root/.ssh/authorized_keys
-${ANSIBLE_SSH_KEYS}
+${ROOT_SSH_KEYS}
 IEOF
 chmod 0400 /root/.ssh/authorized_keys
 chown -R root:wheel /root/.ssh
@@ -186,29 +204,11 @@ service ntpd onefetch
 
 # firstboot
 touch /firstboot
-
-# post
-zfs set mountpoint=none ${ZFSBOOT_POOL_NAME}
-#zfs set mountpoint=legacy ${ZFSBOOT_POOL_NAME}/${ZFSBOOT_BEROOT_NAME}/${ZFSBOOT_BOOTFS_NAME}
-zfs set compression=lz4 ${ZFSBOOT_POOL_NAME}
-zfs set atime=off ${ZFSBOOT_POOL_NAME}
-zfs set aclmode=passthrough ${ZFSBOOT_POOL_NAME}
-zfs set aclinherit=passthrough ${ZFSBOOT_POOL_NAME}
-zfs create -s -o compression=off -o sync=disabled -o org.freebsd:swap=on -V ${ZFSBOOT_SWAP_ZVOL_SIZE} ${ZFSBOOT_POOL_NAME}/${ZFSBOOT_BEROOT_NAME}/${ZFSBOOT_SWAPFS_NAME}
-rmdir /${ZFSBOOT_POOL_NAME}
 EOF
 
 # install
 bsdinstall distfetch
 bsdinstall script /etc/installerconfig
 
-# zfs legacy
-#zpool import -N ${ZFSBOOT_POOL_NAME}
-#zfs set mountpoint=legacy ${ZFSBOOT_POOL_NAME}/${ZFSBOOT_BEROOT_NAME}/${ZFSBOOT_BOOTFS_NAME}
-#zpool export ${ZFSBOOT_POOL_NAME}
-
 # reboot
 #reboot
-
-# vim: set syn=sh sw=2 ts=2 et :
-# eof
