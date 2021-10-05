@@ -37,16 +37,16 @@ reboot
 ## Packages
 The following packages will be installed as a base set for Ansible:
 ```
-lang/python
-sysutils/dmidecode
-security/ca_root_nss
-security/sudo
-sysutils/firstboot-freebsd-update
-sysutils/firstboot-pkgs
+python
+dmidecode
+ca_root_nss
+sudo
+firstboot-freebsd-update
+firstboot-pkgs
 ```
 If it's a VMware virtual-machine:
 ```
-emulators/open-vm-tools-nox11
+open-vm-tools-nox11
 ```
 
 ## Ansible user and sudo
